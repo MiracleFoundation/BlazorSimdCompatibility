@@ -1,0 +1,22 @@
+<Project>
+
+  <!--
+    BlazorSimdCompatibility — auto-injected by NuGet package.
+    Adds a ReleaseCompat configuration that disables SIMD, jiterpreter,
+    and WASM exception handling for compatibility with older browsers.
+
+    Usage:
+      dotnet publish -c Release          → SIMD build (default)
+      dotnet publish -c ReleaseCompat    → Compat build (no SIMD)
+  -->
+
+  <PropertyGroup Condition="'$(Configuration)' == 'ReleaseCompat'">
+    <WasmEnableSIMD>false</WasmEnableSIMD>
+    <BlazorWebAssemblyJiterpreter>false</BlazorWebAssemblyJiterpreter>
+    <WasmEnableExceptionHandling>false</WasmEnableExceptionHandling>
+    <!-- Inherit other Release settings -->
+    <Optimize>true</Optimize>
+    <Configuration>ReleaseCompat</Configuration>
+  </PropertyGroup>
+
+</Project>

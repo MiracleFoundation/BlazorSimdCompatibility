@@ -1,0 +1,22 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+
+    <!-- .NET Tool packaging -->
+    <PackAsTool>true</PackAsTool>
+    <ToolCommandName>blazor-simd-compat</ToolCommandName>
+    <PackageId>BlazorSimdCompatibility.Cli</PackageId>
+    <Version>1.0.0</Version>
+    <Authors>Cuong Nguyen</Authors>
+    <Description>CLI tool for Blazor WASM SIMD compatibility. Verify dual-publish output and automate dual-build + merge.</Description>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageProjectUrl>https://github.com/chicuong2k3/blazor-toolkit</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/chicuong2k3/blazor-toolkit</RepositoryUrl>
+    <PackageTags>blazor;webassembly;wasm;simd;cli;dotnet-tool</PackageTags>
+  </PropertyGroup>
+
+</Project>

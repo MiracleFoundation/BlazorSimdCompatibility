@@ -1,0 +1,9 @@
+<Solution>
+  <Folder Name="/samples/">
+    <Project Path="samples/BlazorWasmSample/BlazorWasmSample.csproj" />
+  </Folder>
+  <Folder Name="/src/">
+    <Project Path="src/BlazorSimdCompatibility.Cli/BlazorSimdCompatibility.Cli.csproj" />
+    <Project Path="src/BlazorSimdCompatibility/BlazorSimdCompatibility.csproj" />
+  </Folder>
+</Solution>

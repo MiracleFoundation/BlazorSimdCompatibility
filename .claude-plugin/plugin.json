@@ -1,0 +1,25 @@
+{
+  "name": "blazor-simd-compatibility",
+  "version": "1.0.0",
+  "description": "AI skill for BlazorSimdCompatibility — guides users through adding SIMD runtime detection, dual-build publishing, and deploying Blazor WASM apps with cross-browser compatibility.",
+  "author": {
+    "name": "Cuong Nguyen",
+    "email": "nguyenchicuongk21@gmail.com",
+    "url": "https://github.com/chicuong2k3"
+  },
+  "homepage": "https://github.com/chicuong2k3/blazor-toolkit",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/chicuong2k3/blazor-toolkit.git"
+  },
+  "license": "MIT",
+  "keywords": [
+    "blazor",
+    "webassembly",
+    "wasm",
+    "simd",
+    "dotnet",
+    "compatibility",
+    "deployment"
+  ]
+}
