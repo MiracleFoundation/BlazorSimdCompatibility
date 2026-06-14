@@ -1,6 +1,9 @@
 name: Publish NuGet Packages
 
 on:
+  push:
+    tags:
+      - 'v*'
   release:
     types: [published]
   workflow_dispatch:
@@ -30,7 +33,7 @@ jobs:
       - name: Determine version
         id: version
         run: |
-          if [ "${{ github.event_name }}" = "release" ]; then
+          if [ "${{ github.event_name }}" = "release" ] || [[ "${{ github.ref }}" == refs/tags/v* ]]; then
             # Strip 'v' prefix from tag: v1.0.0 -> 1.0.0
             VERSION="${GITHUB_REF_NAME#v}"
           else
