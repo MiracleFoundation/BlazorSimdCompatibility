@@ -1,0 +1,73 @@
+name: Publish NuGet Packages
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Package version (e.g. 1.0.0)'
+        required: true
+        type: string
+      dry_run:
+        description: 'Dry run (skip actual push)'
+        required: false
+        type: boolean
+        default: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Determine version
+        id: version
+        run: |
+          if [ "${{ github.event_name }}" = "release" ]; then
+            # Strip 'v' prefix from tag: v1.0.0 -> 1.0.0
+            VERSION="${GITHUB_REF_NAME#v}"
+          else
+            VERSION="${{ inputs.version }}"
+          fi
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "Publishing version: $VERSION"
+
+      - name: Restore
+        run: dotnet restore
+
+      - name: Build
+        run: dotnet build -c Release --no-restore
+
+      - name: Pack library
+        run: >
+          dotnet pack src/BlazorSimdCompatibility/BlazorSimdCompatibility.csproj
+          -c Release
+          --no-build
+          -o nupkgs
+          -p:Version=${{ steps.version.outputs.version }}
+
+      - name: Pack CLI tool
+        run: >
+          dotnet pack src/BlazorSimdCompatibility.Cli/BlazorSimdCompatibility.Cli.csproj
+          -c Release
+          --no-build
+          -o nupkgs
+          -p:Version=${{ steps.version.outputs.version }}
+
+      - name: List packages
+        run: ls -la nupkgs/
+
+      - name: Push to NuGet.org
+        if: ${{ !inputs.dry_run }}
+        run: |
+          dotnet nuget push nupkgs/*.nupkg \
+            --api-key ${{ secrets.NUGET_API_KEY }} \
+            --source https://api.nuget.org/v3/index.json \
+            --skip-duplicate
