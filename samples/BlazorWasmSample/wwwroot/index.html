@@ -26,34 +26,36 @@
         <span class="dismiss">🗙</span>
     </div>
 
-    <!-- Visible debug overlay for mobile (no DevTools needed) -->
-    <div id="boot-debug" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;z-index:99999;background:#1a1a2e;color:#0f0;padding:16px;font:12px/1.4 monospace;overflow:auto;white-space:pre-wrap;"></div>
+    <!-- Debug overlay: always visible, shows all logs -->
+    <div id="boot-debug" style="position:fixed;top:0;left:0;right:0;bottom:0;z-index:99999;background:#1a1a2e;color:#0f0;padding:16px;font:13px/1.5 monospace;overflow:auto;white-space:pre-wrap;">
+      <div style="color:#0ff">[debug] Loading... — <script>document.write(navigator.userAgent)</script></div>
+    </div>
     <script>
       (function() {
         var el = document.getElementById('boot-debug');
-        var url = new URL(location.href);
-        var verbose = url.searchParams.get('verboseStart') === '1';
-        if (!verbose) return;
-        el.style.display = 'block';
-        var origLog = console.log;
-        var origWarn = console.warn;
-        var origErr = console.error;
         function add(type, args) {
           var line = document.createElement('div');
           line.style.color = type === 'error' ? '#f55' : type === 'warn' ? '#ff0' : '#0f0';
-          line.textContent = '[' + type + '] ' + Array.from(args).map(function(a) {
-            return typeof a === 'object' ? JSON.stringify(a, null, 2) : String(a);
-          }).join(' ');
+          var parts = [];
+          for (var i = 0; i < args.length; i++) {
+            try { parts.push(typeof args[i] === 'object' ? JSON.stringify(args[i]) : String(args[i])); } catch(e) { parts.push(String(args[i])); }
+          }
+          line.textContent = '[' + type + '] ' + parts.join(' ');
           el.appendChild(line);
           el.scrollTop = el.scrollHeight;
         }
-        console.log = function() { add('log', arguments); origLog.apply(console, arguments); };
-        console.warn = function() { add('warn', arguments); origWarn.apply(console, arguments); };
-        console.error = function() { add('error', arguments); origErr.apply(console, arguments); };
+        var origLog = console.log;
+        var origWarn = console.warn;
+        var origErr = console.error;
+        console.log = function() { add('LOG', arguments); origLog.apply(console, arguments); };
+        console.warn = function() { add('WARN', arguments); origWarn.apply(console, arguments); };
+        console.error = function() { add('ERR', arguments); origErr.apply(console, arguments); };
         window.onerror = function(msg, src, line, col, err) {
-          add('error', [msg + ' at ' + src + ':' + line + ':' + col]);
+          add('ERR', [msg + ' (' + src + ':' + line + ')']);
         };
-        add('log', ['Debug mode ON — ' + navigator.userAgent]);
+        window.addEventListener('unhandledrejection', function(e) {
+          add('ERR', ['Unhandled rejection: ' + e.reason]);
+        });
       })();
     </script>
 
