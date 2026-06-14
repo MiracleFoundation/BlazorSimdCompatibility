@@ -150,12 +150,20 @@ static int RunVerify(string[] args)
     }
 
     // ── wasm-feature-detect self-hosted ──
+    // Check both root and _content/BlazorSimdCompatibility/ (NuGet static web assets)
 
     var wfd = MatchDir(publishRoot, @"^wasm-feature-detect.*\.js$");
+    var wfdContent = MatchDir(
+        Path.Combine(publishRoot, "_content", "BlazorSimdCompatibility"),
+        @"^wasm-feature-detect.*\.js$");
+
     if (wfd.Length > 0)
-        Report("PASS", "wasm-feature-detect*.js self-hosted", string.Join(", ", wfd));
+        Report("PASS", "wasm-feature-detect*.js self-hosted (root)", string.Join(", ", wfd));
+    else if (wfdContent.Length > 0)
+        Report("PASS", "wasm-feature-detect*.js self-hosted (_content/BlazorSimdCompatibility/)",
+            string.Join(", ", wfdContent));
     else
-        Report("FAIL", "wasm-feature-detect*.js not found at publish root",
+        Report("FAIL", "wasm-feature-detect*.js not found",
             "self-host a copy — CDN breaks offline PWAs");
 
     // ── PWA-specific artifacts ──
