@@ -34,10 +34,10 @@ Replace the default Blazor script tag with the detection setup:
 
 ```html
 <!-- BEFORE (default — no compat): -->
-<script src="_framework/blazor.webassembly#[.{fingerprint}].js"></script>
+<script src="_framework/blazor.webassembly.js"></script>
 
 <!-- AFTER (with SIMD detection): -->
-<script src="_framework/blazor.webassembly#[.{fingerprint}].js"
+<script src="_framework/blazor.webassembly.js"
         autostart="false"
         onerror="window.__blazorLoaderFailed=true;console.error('[boot] Blazor loader failed');"></script>
 
@@ -49,7 +49,8 @@ Replace the default Blazor script tag with the detection setup:
 
 Key points:
 - `autostart="false"` is **required** — otherwise Blazor boots before detection runs.
-- `#[.{fingerprint}]` is the .NET 9+ content-hash placeholder. On .NET 8, use the literal filename.
+- **.NET 8**: use literal `_framework/blazor.webassembly.js`
+- **.NET 9+**: use `_framework/blazor.webassembly#[.{fingerprint}].js` (content-hash placeholder for cache busting)
 - The `onerror` handlers are cheap insurance — without them, a 404 silently produces `ReferenceError: Can't find variable: Blazor`.
 
 ### Step 3 — For Blazor Web App (hosted, .NET 8+)
