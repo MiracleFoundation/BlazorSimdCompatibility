@@ -44,29 +44,18 @@
 
       var compatFrameworkPath = window.__blazorSimdCompatPath || '_frameworkCompat/';
 
+      console.log('[blazor-simd-compat] useCompatMode:', useCompatMode, '— will', useCompatMode ? 'REDIRECT to _frameworkCompat/' : 'use _framework/');
+
       var webAssemblyConfig = {
         loadBootResource: function (type, name, defaultUri, integrity) {
-          if (verboseStart) console.log('[blazor-simd-compat] load', type, name, defaultUri);
-          if (useCompatMode) {
-            return defaultUri.replace('_framework/', compatFrameworkPath);
-          }
-          // Return undefined → use default URI
+          var newUri = useCompatMode ? defaultUri.replace('_framework/', compatFrameworkPath) : defaultUri;
+          console.log('[blazor-simd-compat] loadBootResource:', type, name, defaultUri, '→', newUri);
+          return newUri;
         },
       };
 
-      // Detect runtime type (united vs wasm-only)
-      var runtimeType = '';
-      var scripts = document.scripts;
-      for (var i = 0; i < scripts.length; i++) {
-        if (scripts[i].src.indexOf('_framework/blazor.web') !== -1) { runtimeType = 'united'; break; }
-        if (scripts[i].src.indexOf('_framework/blazor.webassembly') !== -1) { runtimeType = 'wasm'; break; }
-      }
-
-      if (runtimeType === 'united') {
-        Blazor.start({ webAssembly: webAssemblyConfig });
-      } else {
-        Blazor.start(webAssemblyConfig);
-      }
+      console.log('[blazor-simd-compat] Calling Blazor.start()...');
+      Blazor.start({ webAssembly: webAssemblyConfig });
     } catch (err) {
       console.error('[blazor-simd-compat] Startup failed:', err);
     }
