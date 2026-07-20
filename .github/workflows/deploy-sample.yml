@@ -29,11 +29,11 @@ jobs:
       - name: Install wasm-tools
         run: dotnet workload install wasm-tools
 
+      - name: Pack library (local NuGet feed for sample)
+        run: dotnet pack src/BlazorSimdCompatibility/BlazorSimdCompatibility.csproj --configuration Release --output nupkgs --nologo
+
       - name: Install CLI tool
         run: dotnet tool install -g BlazorSimdCompatibility.Cli
-
-      - name: Restore
-        run: dotnet restore samples/BlazorWasmSample/BlazorWasmSample.csproj
 
       - name: Dual publish
         run: blazor-simd-compat publish --project samples/BlazorWasmSample --output bin/Publish
