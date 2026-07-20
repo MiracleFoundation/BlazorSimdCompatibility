@@ -9,7 +9,7 @@
   <ItemGroup>
     <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly" Version="8.0.0" />
     <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly.DevServer" Version="8.0.0" PrivateAssets="all" />
-    <PackageReference Include="BlazorSimdCompatibility" Version="1.0.0" />
+    <PackageReference Include="BlazorSimdCompatibility" Version="1.*" />
   </ItemGroup>
 
 </Project>

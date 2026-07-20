@@ -29,11 +29,17 @@ jobs:
       - name: Install wasm-tools
         run: dotnet workload install wasm-tools wasm-tools-net8
 
+      - name: Clear NuGet cache
+        run: dotnet nuget locals all --clear
+
       - name: Pack library (local NuGet feed for sample)
         run: dotnet pack src/BlazorSimdCompatibility/BlazorSimdCompatibility.csproj --configuration Release --output nupkgs --nologo
 
-      - name: Install CLI tool
-        run: dotnet tool install -g BlazorSimdCompatibility.Cli
+      - name: Pack CLI tool
+        run: dotnet pack src/BlazorSimdCompatibility.Cli/BlazorSimdCompatibility.Cli.csproj --configuration Release --output nupkgs --nologo
+
+      - name: Install CLI tool (from local nupkg)
+        run: dotnet tool install -g BlazorSimdCompatibility.Cli --add-source nupkgs
 
       - name: Dual publish
         run: blazor-simd-compat publish --project samples/BlazorWasmSample --output bin/Publish
