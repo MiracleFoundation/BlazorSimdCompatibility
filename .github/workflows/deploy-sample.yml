@@ -27,7 +27,7 @@ jobs:
           dotnet-version: '8.0.x'
 
       - name: Install wasm-tools
-        run: dotnet workload install wasm-tools
+        run: dotnet workload install wasm-tools wasm-tools-net8
 
       - name: Pack library (local NuGet feed for sample)
         run: dotnet pack src/BlazorSimdCompatibility/BlazorSimdCompatibility.csproj --configuration Release --output nupkgs --nologo
