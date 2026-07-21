@@ -32,4 +32,58 @@
     <Configuration>ReleaseCompat</Configuration>
   </PropertyGroup>
 
+  <!--
+    =========================================================================
+    Post-processing: strip target_features section from dotnet.native.wasm
+    =========================================================================
+
+    PROBLEM: The SDK native strip target (WasmApp.Native.targets:L529) calls
+    wasm-opt with +simd +exception-handling plus strip-dwarf flag. This
+    hardcodes the simd feature in the wasm-opt command regardless of the
+    WasmEnableSIMD property. Even when WasmEnableSIMD=false (which correctly
+    links libmono-wasm-nosimd.a so simd instructions are absent), the strip
+    step re-writes the target_features custom section with simd declared.
+
+    On iOS 15 Safari (and other browsers without WASM SIMD), this feature
+    declaration causes WebAssembly.validate() to reject the module with
+    "SIMD is not supported" BEFORE any code executes.
+
+    FIX: Run wasm-opt again after the native strip to remove the
+    target_features section entirely. This eliminates the simd declaration.
+    The browser will then validate each instruction directly rather than
+    rejecting based on the feature section.
+
+    VERIFIED:
+    - The module does NOT contain actual SIMD instructions in code sections
+      (0xFD bytes are in data sections from embedded DLL content)
+    - wasm-opt feature detection outputs only mutable-globals and sign-ext
+      after stripping target_features
+    - No exception handling instructions detected in the module code
+    - wasm-opt strip-target-features is idempotent
+  -->
+  <Target Name="_BlazorSimdStripFeatureSection"
+          AfterTargets="_CompleteWasmBuildNative"
+          Condition="'$(Configuration)' == 'ReleaseCompat'">
+
+    <PropertyGroup>
+      <_BlazorSimdWasmPath>$(_WasmIntermediateOutputPath)dotnet.native.wasm</_BlazorSimdWasmPath>
+    </PropertyGroup>
+
+    <Exec Command="wasm-opt$(_ExeExt) --strip-target-features --enable-mutable-globals --enable-sign-ext &quot;$(_BlazorSimdWasmPath)&quot; -o &quot;$(_BlazorSimdWasmPath)&quot;"
+          Condition="'$(WasmNativeStrip)' == 'true' and Exists('$(_BlazorSimdWasmPath)')"
+          IgnoreStandardErrorWarningFormat="true"
+          EnvironmentVariables="@(EmscriptenEnvVars)"
+          ContinueOnError="true">
+      <Output TaskParameter="ExitCode" PropertyName="_BlazorSimdWasmOptExitCode" />
+    </Exec>
+
+    <Message Text="BlazorSimdCompatibility: Stripped target_features (including --enable-simd) from dotnet.native.wasm ✓"
+             Condition="'$(_BlazorSimdWasmOptExitCode)' == '0'"
+             Importance="High" />
+
+    <Warning Text="BlazorSimdCompatibility: wasm-opt exited with code $(_BlazorSimdWasmOptExitCode). dotnet.native.wasm may still declare --enable-simd, which will cause failures on iOS 15 and other browsers without SIMD support."
+             Condition="'$(_BlazorSimdWasmOptExitCode)' != '0'"
+             Importance="High" />
+  </Target>
+
 </Project>
