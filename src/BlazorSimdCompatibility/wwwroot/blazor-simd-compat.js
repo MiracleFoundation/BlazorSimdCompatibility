@@ -18,30 +18,52 @@
   if (!globalThis.BigUint64Array) globalThis.BigUint64Array = function () { };
 
   async function detectAndStart() {
+    var url = new URL(location.href);
+    var verboseStart = url.searchParams.get('verboseStart') === '1';
+    var forceCompatMode = url.searchParams.get('forceCompatMode') === '1';
+
+    // Check if wasm-feature-detect is available
+    var featureDetectAvailable = typeof wasmFeatureDetect !== 'undefined' && !window.__featureDetectFailed;
+
+    if (!featureDetectAvailable) {
+      if (verboseStart) console.warn('[blazor-simd-compat] wasm-feature-detect unavailable — falling back to compat build');
+      forceCompatMode = true;
+    }
+
+    // Detect SIMD support — wrap in try/catch so a detection failure doesn't kill startup
+    var supportsSimd = false;
+    if (!forceCompatMode) {
+      try {
+        supportsSimd = await wasmFeatureDetect.simd();
+      } catch (e) {
+        console.warn('[blazor-simd-compat] SIMD detection threw:', e);
+      }
+    }
+
+    // Detect exception handling support — independently wrapped
+    var supportsExceptions = false;
+    if (!forceCompatMode) {
+      try {
+        supportsExceptions = await wasmFeatureDetect.exceptions();
+      } catch (e) {
+        console.warn('[blazor-simd-compat] Exception-handling detection threw:', e);
+      }
+    }
+
+    var useCompatMode = !supportsSimd || !supportsExceptions || forceCompatMode;
+
+    if (verboseStart) {
+      console.log('[blazor-simd-compat] supportsSimd:', supportsSimd);
+      console.log('[blazor-simd-compat] supportsExceptions:', supportsExceptions);
+      console.log('[blazor-simd-compat] useCompatMode:', useCompatMode);
+      console.log('[blazor-simd-compat] userAgent:', navigator.userAgent);
+    }
+
+    startBlazor(useCompatMode);
+  }
+
+  function startBlazor(useCompatMode) {
     try {
-      var url = new URL(location.href);
-      var verboseStart = url.searchParams.get('verboseStart') === '1';
-      var forceCompatMode = url.searchParams.get('forceCompatMode') === '1';
-
-      // Check if wasm-feature-detect is available
-      var featureDetectAvailable = typeof wasmFeatureDetect !== 'undefined' && !window.__featureDetectFailed;
-
-      if (!featureDetectAvailable) {
-        if (verboseStart) console.warn('[blazor-simd-compat] wasm-feature-detect unavailable — falling back to compat build');
-        forceCompatMode = true;
-      }
-
-      var supportsSimd = forceCompatMode ? false : await wasmFeatureDetect.simd();
-      var supportsExceptions = forceCompatMode ? false : await wasmFeatureDetect.exceptions();
-      var useCompatMode = !supportsSimd || !supportsExceptions || forceCompatMode;
-
-      if (verboseStart) {
-        console.log('[blazor-simd-compat] supportsSimd:', supportsSimd);
-        console.log('[blazor-simd-compat] supportsExceptions:', supportsExceptions);
-        console.log('[blazor-simd-compat] useCompatMode:', useCompatMode);
-        console.log('[blazor-simd-compat] userAgent:', navigator.userAgent);
-      }
-
       var compatFrameworkPath = window.__blazorSimdCompatPath || '_frameworkCompat/';
 
       console.log('[blazor-simd-compat] useCompatMode:', useCompatMode, '— will', useCompatMode ? 'REDIRECT to _frameworkCompat/' : 'use _framework/');
@@ -57,7 +79,7 @@
       console.log('[blazor-simd-compat] Calling Blazor.start()...');
       Blazor.start({ webAssembly: webAssemblyConfig });
     } catch (err) {
-      console.error('[blazor-simd-compat] Startup failed:', err);
+      console.error('[blazor-simd-compat] Blazor.start() failed:', err);
     }
   }
 

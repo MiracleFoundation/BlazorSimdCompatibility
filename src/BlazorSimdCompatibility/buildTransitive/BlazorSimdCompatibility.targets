@@ -69,8 +69,14 @@
       <_BlazorSimdWasmPath>$(_WasmIntermediateOutputPath)dotnet.native.wasm</_BlazorSimdWasmPath>
     </PropertyGroup>
 
+    <!--
+      NOTE: WasmNativeStrip is intentionally NOT checked here because in .NET 8+
+      it defaults to true only when $(Configuration) == 'Release' (exact match).
+      ReleaseCompat is a custom configuration, so WasmNativeStrip may be false/empty.
+      We always run wasm-opt for ReleaseCompat regardless.
+    -->
     <Exec Command="wasm-opt$(_ExeExt) --strip-target-features --enable-mutable-globals --enable-sign-ext &quot;$(_BlazorSimdWasmPath)&quot; -o &quot;$(_BlazorSimdWasmPath)&quot;"
-          Condition="'$(WasmNativeStrip)' == 'true' and Exists('$(_BlazorSimdWasmPath)')"
+          Condition="Exists('$(_BlazorSimdWasmPath)')"
           IgnoreStandardErrorWarningFormat="true"
           EnvironmentVariables="@(EmscriptenEnvVars)"
           ContinueOnError="true">
