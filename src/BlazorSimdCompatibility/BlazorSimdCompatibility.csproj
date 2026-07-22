@@ -1,7 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk.Razor">
 
   <PropertyGroup>
-    <TargetFrameworks>net8.0;net9.0;net10.0;net11.0</TargetFrameworks>
+    <TargetFrameworks>net8.0;net9.0;net10.0</TargetFrameworks>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
 
@@ -31,9 +31,6 @@
   <ItemGroup Condition="'$(TargetFramework)' == 'net10.0'">
     <PackageReference Include="Microsoft.AspNetCore.Components.Web" Version="10.0.0" />
   </ItemGroup>
-  <ItemGroup Condition="'$(TargetFramework)' == 'net11.0'">
-    <PackageReference Include="Microsoft.AspNetCore.Components.Web" Version="11.0.0-preview.6.26359.118" />
-  </ItemGroup>
 
   <!-- Include README -->
   <ItemGroup>
@@ -53,7 +50,6 @@
     <None Include="build\net8.0\BlazorSimdCompatibility.props" Pack="true" PackagePath="build\net8.0\" />
     <None Include="build\net9.0\BlazorSimdCompatibility.props" Pack="true" PackagePath="build\net9.0\" />
     <None Include="build\net10.0\BlazorSimdCompatibility.props" Pack="true" PackagePath="build\net10.0\" />
-    <None Include="build\net11.0\BlazorSimdCompatibility.props" Pack="true" PackagePath="build\net11.0\" />
   </ItemGroup>
 
   <!-- Include buildTransitive .targets as a secondary safety net for ReleaseCompat.
