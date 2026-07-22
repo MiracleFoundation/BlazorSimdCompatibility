@@ -74,7 +74,7 @@
     // Verify compat framework exists before falling back
     if (useCompatMode) {
       try {
-        var bootCheckUrl = compatFrameworkPath + 'blazor.boot.json';
+        var bootCheckUrl = compatFrameworkPath + 'dotnet.js';
         var response = await fetch(bootCheckUrl, { method: 'HEAD', cache: 'no-cache' });
         if (!response.ok) {
           console.warn('[blazor-simd-compat] Compat NOT found at ' + bootCheckUrl + ' (HTTP ' + response.status + ')');
