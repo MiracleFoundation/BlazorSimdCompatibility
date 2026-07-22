@@ -68,16 +68,19 @@
 
       console.log('[blazor-simd-compat] useCompatMode:', useCompatMode, '— will', useCompatMode ? 'REDIRECT to _frameworkCompat/' : 'use _framework/');
 
-      var webAssemblyConfig = {
+      console.log('[blazor-simd-compat] Calling Blazor.start()...');
+
+      // IMPORTANT: loadBootResource must be at the TOP LEVEL for standalone
+      // Blazor WASM (blazor.webassembly.js).  Nesting it under webAssembly: {}
+      // is silently ignored by blazor.webassembly.js in .NET 8/9.
+      // See dotnet/aspnetcore #51611.
+      Blazor.start({
         loadBootResource: function (type, name, defaultUri, integrity) {
           var newUri = useCompatMode ? defaultUri.replace('_framework/', compatFrameworkPath) : defaultUri;
           console.log('[blazor-simd-compat] loadBootResource:', type, name, defaultUri, '→', newUri);
           return newUri;
         },
-      };
-
-      console.log('[blazor-simd-compat] Calling Blazor.start()...');
-      Blazor.start({ webAssembly: webAssemblyConfig });
+      });
     } catch (err) {
       console.error('[blazor-simd-compat] Blazor.start() failed:', err);
     }
