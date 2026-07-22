@@ -7,7 +7,7 @@
 
     <!-- NuGet package metadata -->
     <PackageId>BlazorSimdCompatibility</PackageId>
-    <Version>1.0.10</Version>
+    <Version>1.0.11</Version>
     <Authors>Cuong Nguyen</Authors>
     <Description>Runtime SIMD/exception-handling detection for Blazor WebAssembly. Automatically falls back to a compatibility build on unsupported browsers. Includes dual-publish CLI tool.</Description>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>

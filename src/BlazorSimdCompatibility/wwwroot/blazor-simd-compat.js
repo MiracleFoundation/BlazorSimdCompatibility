@@ -13,9 +13,9 @@
 (function () {
   'use strict';
 
-  // Stub BigInt64Array/BigUint64Array so detection doesn't crash on very old engines.
-  if (!globalThis.BigInt64Array) globalThis.BigInt64Array = function () { };
-  if (!globalThis.BigUint64Array) globalThis.BigUint64Array = function () { };
+  // Intentionally NOT stubbing BigInt64Array/BigUint64Array: on iOS 15.0-15.3
+  // these are undefined. Stubbing them as function(){} tricks Blazor's WASM
+  // runtime into attempting typed-array operations that silently fail.
 
   async function detectAndStart() {
     var url = new URL(location.href);
@@ -51,24 +51,39 @@
     }
 
     var useCompatMode = !supportsSimd || !supportsExceptions || forceCompatMode;
+    var compatFrameworkPath = window.__blazorSimdCompatPath || '_frameworkCompat/';
 
     if (verboseStart) {
       console.log('[blazor-simd-compat] supportsSimd:', supportsSimd);
       console.log('[blazor-simd-compat] supportsExceptions:', supportsExceptions);
       console.log('[blazor-simd-compat] useCompatMode:', useCompatMode);
+      console.log('[blazor-simd-compat] compatFrameworkPath:', compatFrameworkPath);
       console.log('[blazor-simd-compat] userAgent:', navigator.userAgent);
     }
 
-    startBlazor(useCompatMode);
+    // Verify compat framework exists before falling back
+    if (useCompatMode) {
+      try {
+        var bootCheckUrl = compatFrameworkPath + 'blazor.boot.json';
+        var response = await fetch(bootCheckUrl, { method: 'HEAD', cache: 'no-cache' });
+        if (!response.ok) {
+          console.warn('[blazor-simd-compat] Compat framework NOT found at ' + bootCheckUrl + ' (HTTP ' + response.status + ') — falling back to default build. Did you run `blazor-simd-compat publish`?');
+          useCompatMode = false;
+        } else if (verboseStart) {
+          console.log('[blazor-simd-compat] Compat framework verified at ' + bootCheckUrl);
+        }
+      } catch (e) {
+        console.warn('[blazor-simd-compat] Compat framework check failed:', e, '— falling back to default build');
+        useCompatMode = false;
+      }
+    }
+
+    startBlazor(useCompatMode, compatFrameworkPath);
   }
 
-  function startBlazor(useCompatMode) {
+  function startBlazor(useCompatMode, compatFrameworkPath) {
     try {
-      var compatFrameworkPath = window.__blazorSimdCompatPath || '_frameworkCompat/';
-
-      console.log('[blazor-simd-compat] useCompatMode:', useCompatMode, '— will', useCompatMode ? 'REDIRECT to _frameworkCompat/' : 'use _framework/');
-
-      console.log('[blazor-simd-compat] Calling Blazor.start()...');
+      console.log('[blazor-simd-compat] Booting with mode:', useCompatMode ? 'COMPAT (' + compatFrameworkPath + ')' : 'DEFAULT (_framework/)');
 
       // IMPORTANT: loadBootResource must be at the TOP LEVEL for standalone
       // Blazor WASM (blazor.webassembly.js).  Nesting it under webAssembly: {}
@@ -76,9 +91,10 @@
       // See dotnet/aspnetcore #51611.
       Blazor.start({
         loadBootResource: function (type, name, defaultUri, integrity) {
-          var newUri = useCompatMode ? defaultUri.replace('_framework/', compatFrameworkPath) : defaultUri;
-          console.log('[blazor-simd-compat] loadBootResource:', type, name, defaultUri, '→', newUri);
-          return newUri;
+          if (!useCompatMode) return defaultUri;
+          var compatUri = defaultUri.replace('_framework/', compatFrameworkPath);
+          console.log('[blazor-simd-compat] loadBootResource:', type, name, defaultUri, '→', compatUri);
+          return compatUri;
         },
       });
     } catch (err) {
