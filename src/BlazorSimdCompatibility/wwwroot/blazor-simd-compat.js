@@ -25,6 +25,11 @@
     var forceCompatMode = url.searchParams.get('forceCompatMode') === '1';
     var isRetry = url.searchParams.get(RETRY_FLAG) === '1';
 
+    if (window.__blazorLoaderFailed) {
+      showBootError(new Error('blazor.webassembly.js failed to load'));
+      return;
+    }
+
     // Check if wasm-feature-detect is available
     var featureDetectAvailable = typeof wasmFeatureDetect !== 'undefined' && !window.__featureDetectFailed;
 
@@ -86,10 +91,36 @@
     startBlazor(useCompatMode, compatFrameworkPath);
   }
 
+  function waitForBlazor(timeoutMs) {
+    return new Promise(function (resolve, reject) {
+      if (typeof Blazor !== 'undefined') {
+        resolve();
+        return;
+      }
+      if (window.__blazorLoaderFailed) {
+        reject(new Error('blazor.webassembly.js failed to load'));
+        return;
+      }
+      var start = Date.now();
+      var timer = setInterval(function () {
+        if (typeof Blazor !== 'undefined') {
+          clearInterval(timer);
+          resolve();
+          return;
+        }
+        if (Date.now() - start > timeoutMs) {
+          clearInterval(timer);
+          reject(new Error('Blazor global not defined within ' + timeoutMs + 'ms'));
+        }
+      }, 100);
+    });
+  }
+
   async function startBlazor(useCompatMode, compatFrameworkPath) {
     try {
       console.log('[blazor-simd-compat] Booting:', useCompatMode ? 'COMPAT' : 'DEFAULT');
 
+      await waitForBlazor(15000);
       await Blazor.start({
         loadBootResource: function (type, name, defaultUri, integrity) {
           if (!useCompatMode) return defaultUri;
