@@ -56,8 +56,8 @@
     VERIFIED:
     - The module does NOT contain actual SIMD instructions in code sections
       (0xFD bytes are in data sections from embedded DLL content)
-    - wasm-opt feature detection outputs only mutable-globals and sign-ext
-      after stripping target_features
+    - wasm-opt feature detection outputs only mutable-globals, sign-ext,
+      bulk-memory, and nontrapping-float-to-int after stripping target_features
     - No exception handling instructions detected in the module code
     - wasm-opt strip-target-features is idempotent
   -->
@@ -75,7 +75,7 @@
       ReleaseCompat is a custom configuration, so WasmNativeStrip may be false/empty.
       We always run wasm-opt for ReleaseCompat regardless.
     -->
-    <Exec Command="wasm-opt$(_ExeExt) --strip-target-features --enable-mutable-globals --enable-sign-ext &quot;$(_BlazorSimdWasmPath)&quot; -o &quot;$(_BlazorSimdWasmPath)&quot;"
+    <Exec Command="wasm-opt$(_ExeExt) --strip-target-features --enable-mutable-globals --enable-sign-ext --enable-bulk-memory --enable-nontrapping-float-to-int &quot;$(_BlazorSimdWasmPath)&quot; -o &quot;$(_BlazorSimdWasmPath)&quot;"
           Condition="Exists('$(_BlazorSimdWasmPath)')"
           IgnoreStandardErrorWarningFormat="true"
           EnvironmentVariables="@(EmscriptenEnvVars)"
@@ -88,8 +88,7 @@
              Importance="High" />
 
     <Warning Text="BlazorSimdCompatibility: wasm-opt exited with code $(_BlazorSimdWasmOptExitCode). dotnet.native.wasm may still declare --enable-simd, which will cause failures on iOS 15 and other browsers without SIMD support."
-             Condition="'$(_BlazorSimdWasmOptExitCode)' != '0'"
-             Importance="High" />
+             Condition="'$(_BlazorSimdWasmOptExitCode)' != '0'" />
   </Target>
 
 </Project>
