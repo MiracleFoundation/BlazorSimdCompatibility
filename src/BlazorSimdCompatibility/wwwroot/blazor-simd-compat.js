@@ -17,10 +17,13 @@
   // these are undefined. Stubbing them as function(){} tricks Blazor's WASM
   // runtime into attempting typed-array operations that silently fail.
 
+  var RETRY_FLAG = 'bsdCompatRetry';
+
   async function detectAndStart() {
     var url = new URL(location.href);
     var verboseStart = url.searchParams.get('verboseStart') === '1';
     var forceCompatMode = url.searchParams.get('forceCompatMode') === '1';
+    var isRetry = url.searchParams.get(RETRY_FLAG) === '1';
 
     // Check if wasm-feature-detect is available
     var featureDetectAvailable = typeof wasmFeatureDetect !== 'undefined' && !window.__featureDetectFailed;
@@ -30,7 +33,7 @@
       forceCompatMode = true;
     }
 
-    // Detect SIMD support — wrap in try/catch so a detection failure doesn't kill startup
+    // Detect SIMD support
     var supportsSimd = false;
     if (!forceCompatMode) {
       try {
@@ -40,7 +43,7 @@
       }
     }
 
-    // Detect exception handling support — independently wrapped
+    // Detect exception handling support
     var supportsExceptions = false;
     if (!forceCompatMode) {
       try {
@@ -50,7 +53,8 @@
       }
     }
 
-    var useCompatMode = !supportsSimd || !supportsExceptions || forceCompatMode;
+    // Skip compat mode if we're retrying from a previous failed boot
+    var useCompatMode = !isRetry && (!supportsSimd || !supportsExceptions || forceCompatMode);
     var compatFrameworkPath = window.__blazorSimdCompatPath || '_frameworkCompat/';
 
     if (verboseStart) {
@@ -58,6 +62,7 @@
       console.log('[blazor-simd-compat] supportsExceptions:', supportsExceptions);
       console.log('[blazor-simd-compat] useCompatMode:', useCompatMode);
       console.log('[blazor-simd-compat] compatFrameworkPath:', compatFrameworkPath);
+      console.log('[blazor-simd-compat] isRetry:', isRetry);
       console.log('[blazor-simd-compat] userAgent:', navigator.userAgent);
     }
 
@@ -67,13 +72,13 @@
         var bootCheckUrl = compatFrameworkPath + 'blazor.boot.json';
         var response = await fetch(bootCheckUrl, { method: 'HEAD', cache: 'no-cache' });
         if (!response.ok) {
-          console.warn('[blazor-simd-compat] Compat framework NOT found at ' + bootCheckUrl + ' (HTTP ' + response.status + ') — falling back to default build. Did you run `blazor-simd-compat publish`?');
+          console.warn('[blazor-simd-compat] Compat NOT found at ' + bootCheckUrl + ' (HTTP ' + response.status + ')');
           useCompatMode = false;
         } else if (verboseStart) {
-          console.log('[blazor-simd-compat] Compat framework verified at ' + bootCheckUrl);
+          console.log('[blazor-simd-compat] Compat verified at ' + bootCheckUrl);
         }
       } catch (e) {
-        console.warn('[blazor-simd-compat] Compat framework check failed:', e, '— falling back to default build');
+        console.warn('[blazor-simd-compat] Compat check failed:', e, '— using default');
         useCompatMode = false;
       }
     }
@@ -81,24 +86,52 @@
     startBlazor(useCompatMode, compatFrameworkPath);
   }
 
-  function startBlazor(useCompatMode, compatFrameworkPath) {
+  async function startBlazor(useCompatMode, compatFrameworkPath) {
     try {
-      console.log('[blazor-simd-compat] Booting with mode:', useCompatMode ? 'COMPAT (' + compatFrameworkPath + ')' : 'DEFAULT (_framework/)');
+      console.log('[blazor-simd-compat] Booting:', useCompatMode ? 'COMPAT' : 'DEFAULT');
 
-      // IMPORTANT: loadBootResource must be at the TOP LEVEL for standalone
-      // Blazor WASM (blazor.webassembly.js).  Nesting it under webAssembly: {}
-      // is silently ignored by blazor.webassembly.js in .NET 8/9.
-      // See dotnet/aspnetcore #51611.
-      Blazor.start({
+      await Blazor.start({
         loadBootResource: function (type, name, defaultUri, integrity) {
           if (!useCompatMode) return defaultUri;
           var compatUri = defaultUri.replace('_framework/', compatFrameworkPath);
-          console.log('[blazor-simd-compat] loadBootResource:', type, name, defaultUri, '→', compatUri);
+          console.log('[blazor-simd-compat] loadBootResource:', type, name, '→', compatUri);
           return compatUri;
         },
       });
     } catch (err) {
-      console.error('[blazor-simd-compat] Blazor.start() failed:', err);
+      console.error('[blazor-simd-compat] Blazor.start() rejected:', err);
+
+      // On compat failure, retry once without compat mode
+      if (useCompatMode && !isRetryParam()) {
+        var retryUrl = window.location.href;
+        retryUrl += (window.location.search ? '&' : '?') + RETRY_FLAG + '=1';
+        console.warn('[blazor-simd-compat] Retrying without compat mode:', retryUrl);
+        window.location.href = retryUrl;
+        return;
+      }
+
+      showBootError(err);
+    }
+  }
+
+  function isRetryParam() {
+    return new URL(location.href).searchParams.get(RETRY_FLAG) === '1';
+  }
+
+  function showBootError(err) {
+    var msg = err ? (err.message || String(err)) : '';
+    console.error('[blazor-simd-compat] Boot failed:', msg);
+
+    // Show error in the existing blazor-error-ui
+    var errorUi = document.getElementById('blazor-error-ui');
+    if (errorUi) {
+      var p = document.createElement('p');
+      p.style.marginTop = '8px';
+      p.style.fontSize = '14px';
+      p.style.wordBreak = 'break-all';
+      p.textContent = msg;
+      errorUi.insertBefore(p, errorUi.firstChild);
+      errorUi.style.display = 'block';
     }
   }
 

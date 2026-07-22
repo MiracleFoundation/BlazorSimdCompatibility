@@ -34,32 +34,24 @@
 
   <!--
     =========================================================================
-    Post-processing: strip target_features section from dotnet.native.wasm
+    Strip target_features from dotnet.native.wasm (build-time)
     =========================================================================
 
-    PROBLEM: The SDK native strip target (WasmApp.Native.targets:L529) calls
-    wasm-opt with +simd +exception-handling plus strip-dwarf flag. This
-    hardcodes the simd feature in the wasm-opt command regardless of the
-    WasmEnableSIMD property. Even when WasmEnableSIMD=false (which correctly
-    links libmono-wasm-nosimd.a so simd instructions are absent), the strip
-    step re-writes the target_features custom section with simd declared.
+    PROBLEM: The SDK native strip target (WasmApp.Native.targets) calls
+    wasm-opt with +simd +exception-handling, hardcoding the simd feature
+    declaration in target_features regardless of WasmEnableSIMD=false.
 
-    On iOS 15 Safari (and other browsers without WASM SIMD), this feature
-    declaration causes WebAssembly.validate() to reject the module with
-    "SIMD is not supported" BEFORE any code executes.
+    On iOS 15 Safari, this declaration causes WebAssembly.validate() to
+    reject the module with "SIMD is not supported" before any code runs.
 
-    FIX: Run wasm-opt again after the native strip to remove the
-    target_features section entirely. This eliminates the simd declaration.
-    The browser will then validate each instruction directly rather than
-    rejecting based on the feature section.
+    FIX: Run wasm-opt again to strip the target_features section. The
+    browser then validates each instruction directly — since the compat build
+    links libmono-wasm-nosimd.a (no actual SIMD instructions), validation
+    passes.
 
-    VERIFIED:
-    - The module does NOT contain actual SIMD instructions in code sections
-      (0xFD bytes are in data sections from embedded DLL content)
-    - wasm-opt feature detection outputs only mutable-globals, sign-ext,
-      bulk-memory, and nontrapping-float-to-int after stripping target_features
-    - No exception handling instructions detected in the module code
-    - wasm-opt strip-target-features is idempotent
+    NOTE: This target uses the SDK's internal intermediate path, which may
+    differ across SDK versions. A second post-publish target below covers
+    cases where this path is unavailable.
   -->
   <Target Name="_BlazorSimdStripFeatureSection"
           AfterTargets="_CompleteWasmBuildNative"
@@ -69,12 +61,6 @@
       <_BlazorSimdWasmPath>$(_WasmIntermediateOutputPath)dotnet.native.wasm</_BlazorSimdWasmPath>
     </PropertyGroup>
 
-    <!--
-      NOTE: WasmNativeStrip is intentionally NOT checked here because in .NET 8+
-      it defaults to true only when $(Configuration) == 'Release' (exact match).
-      ReleaseCompat is a custom configuration, so WasmNativeStrip may be false/empty.
-      We always run wasm-opt for ReleaseCompat regardless.
-    -->
     <Exec Command="wasm-opt$(_ExeExt) --strip-target-features --enable-mutable-globals --enable-sign-ext --enable-bulk-memory --enable-nontrapping-float-to-int &quot;$(_BlazorSimdWasmPath)&quot; -o &quot;$(_BlazorSimdWasmPath)&quot;"
           Condition="Exists('$(_BlazorSimdWasmPath)')"
           IgnoreStandardErrorWarningFormat="true"
@@ -83,12 +69,57 @@
       <Output TaskParameter="ExitCode" PropertyName="_BlazorSimdWasmOptExitCode" />
     </Exec>
 
-    <Message Text="BlazorSimdCompatibility: Stripped target_features (including --enable-simd) from dotnet.native.wasm ✓"
+    <Message Text="BlazorSimdCompatibility: Stripped target_features from dotnet.native.wasm (build-time) ✓"
              Condition="'$(_BlazorSimdWasmOptExitCode)' == '0'"
              Importance="High" />
 
-    <Warning Text="BlazorSimdCompatibility: wasm-opt exited with code $(_BlazorSimdWasmOptExitCode). dotnet.native.wasm may still declare --enable-simd, which will cause failures on iOS 15 and other browsers without SIMD support."
-             Condition="'$(_BlazorSimdWasmOptExitCode)' != '0'" />
+    <Warning Text="BlazorSimdCompatibility: Build-time wasm-opt skipped (intermediate file not found at $(_BlazorSimdWasmPath)). The post-publish target will handle this."
+             Condition="!Exists('$(_BlazorSimdWasmPath)')"
+             Importance="High" />
+  </Target>
+
+  <!--
+    =========================================================================
+    Strip target_features from dotnet.native.wasm (post-publish)
+    =========================================================================
+
+    This target runs AFTER publish and processes the final published wasm
+    file. It is more reliable than the build-time target because:
+      - It uses $(PublishDir) which is always available after publish
+      - It uses a file pattern (dotnet*.wasm) to handle hashed filenames
+      - It does not depend on SDK-specific intermediate paths
+
+    Even if the build-time target already stripped the file, this is
+    idempotent (wasm-opt strip-target-features is safe to run multiple
+    times).
+  -->
+  <Target Name="_BlazorSimdStripPublishedWasm"
+          AfterTargets="Publish"
+          Condition="'$(Configuration)' == 'ReleaseCompat'">
+
+    <ItemGroup>
+      <_BlazorSimdPublishedWasmFiles Include="$(PublishDir)wwwroot\_framework\dotnet*.wasm" />
+      <_BlazorSimdPublishedWasmFiles Include="$(PublishDir)_framework\dotnet*.wasm" />
+    </ItemGroup>
+
+    <Exec Command="wasm-opt$(_ExeExt) --strip-target-features --enable-mutable-globals --enable-sign-ext --enable-bulk-memory --enable-nontrapping-float-to-int &quot;%(_BlazorSimdPublishedWasmFiles.Identity)&quot; -o &quot;%(_BlazorSimdPublishedWasmFiles.Identity)&quot;"
+          Condition="'@(_BlazorSimdPublishedWasmFiles)' != ''"
+          IgnoreStandardErrorWarningFormat="true"
+          EnvironmentVariables="@(EmscriptenEnvVars)"
+          ContinueOnError="true">
+      <Output TaskParameter="ExitCode" PropertyName="_BlazorSimdPublishedWasmOptExitCode" />
+    </Exec>
+
+    <Message Text="BlazorSimdCompatibility: Stripped target_features from published dotnet.native.wasm ✓"
+             Condition="'$(_BlazorSimdPublishedWasmOptExitCode)' == '0'"
+             Importance="High" />
+
+    <Warning Text="BlazorSimdCompatibility: Post-publish wasm-opt failed (code $(_BlazorSimdPublishedWasmOptExitCode)). The compat build may still fail on iOS 15."
+             Condition="'$(_BlazorSimdPublishedWasmOptExitCode)' != '0'" />
+
+    <Message Text="BlazorSimdCompatibility: No dotnet*.wasm found in publish output — skipping post-publish strip."
+             Condition="'@(_BlazorSimdPublishedWasmFiles)' == ''"
+             Importance="High" />
   </Target>
 
 </Project>
