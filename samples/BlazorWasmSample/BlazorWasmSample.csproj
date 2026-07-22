@@ -1,7 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk.BlazorWebAssembly">
 
   <PropertyGroup>
-    <TargetFramework>net8.0</TargetFramework>
+    <TargetFramework>net11.0</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
 
@@ -12,9 +12,16 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly" Version="8.0.0" />
-    <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly.DevServer" Version="8.0.0" PrivateAssets="all" />
+    <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly" Version="11.0.0-preview.6.26359.118" />
+    <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly.DevServer" Version="11.0.0-preview.6.26359.118" PrivateAssets="all" />
     <PackageReference Include="BlazorSimdCompatibility" Version="1.*" />
   </ItemGroup>
+
+  <!-- Remove source map files (blazor.webassembly.js.map + compressed variants) from publish output — not needed in production -->
+  <Target Name="RemoveSourceMaps" AfterTargets="Publish">
+    <Delete Files="$(PublishDir)wwwroot\_framework\blazor.webassembly.js.map" Condition="Exists('$(PublishDir)wwwroot\_framework\blazor.webassembly.js.map')" />
+    <Delete Files="$(PublishDir)wwwroot\_framework\blazor.webassembly.js.map.br" Condition="Exists('$(PublishDir)wwwroot\_framework\blazor.webassembly.js.map.br')" />
+    <Delete Files="$(PublishDir)wwwroot\_framework\blazor.webassembly.js.map.gz" Condition="Exists('$(PublishDir)wwwroot\_framework\blazor.webassembly.js.map.gz')" />
+  </Target>
 
 </Project>

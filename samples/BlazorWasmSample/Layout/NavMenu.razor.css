@@ -9,7 +9,7 @@
     justify-content: center;
 }
 
-.navbar-toggler .navbar-toggler-icon {
+.nav-toggler .nav-toggler-icon {
     display: inline-block;
     width: 1.25rem;
     height: 1.25rem;
@@ -24,7 +24,7 @@
     align-items: center;
 }
 
-.navbar-brand {
+.nav-brand {
     font-size: 1.1rem;
     font-weight: 600;
     color: #fff;
@@ -64,7 +64,7 @@
 
 .nav-item {
     font-size: 0.875rem;
-    padding: 0;
+    padding: 0 1rem;
     margin: 0.125rem 0.5rem;
 }
 
@@ -108,11 +108,11 @@
 }
 
 @media (min-width: 641px) {
-    .navbar-toggler {
+.nav-toggler {
         display: none;
     }
 
-    .collapse {
+    .nav-collapse {
         display: block;
     }
 

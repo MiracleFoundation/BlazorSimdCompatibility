@@ -1,0 +1,371 @@
+@page "/simd-benchmark"
+@using System.Diagnostics
+@using System.Numerics
+@implements IAsyncDisposable
+
+<PageTitle>SIMD Benchmark</PageTitle>
+
+<h1>SIMD Performance Benchmark</h1>
+
+<p class="benchmark-subtitle">
+    Compares scalar vs <code>Vector&lt;T&gt;</code> performance in WebAssembly.
+    Higher speedup = better SIMD acceleration.
+</p>
+
+<div class="simd-status @(isSimdSupported ? "status-ok" : "status-na")">
+    <div class="status-badge">
+        @(isSimdSupported ? "✅ SIMD Accelerated" : "❌ Compatibility Mode")
+    </div>
+    <div class="status-detail">
+        Vector&lt;float&gt;.Count = @vectorWidth &middot;
+        Vector.IsHardwareAccelerated = @(isSimdSupported ? "true" : "false")
+    </div>
+</div>
+
+@if (!isRunning && results == null)
+{
+    <div class="benchmark-cta">
+        <button class="btn-primary btn-lg" @onclick="RunBenchmarks">
+            ▶ Run Benchmark
+        </button>
+        <p class="benchmark-hint">
+            Runs ~2 seconds of CPU-intensive operations in the browser.
+            All computation happens locally on WebAssembly — no data leaves your machine.
+        </p>
+    </div>
+}
+
+@if (isRunning)
+{
+    <div class="benchmark-progress">
+        <div class="progress-bar">
+            <div class="progress-fill" style="width: @(progress)%"></div>
+        </div>
+        <p class="progress-label">@currentBenchmarkName</p>
+    </div>
+}
+
+@if (results != null)
+{
+    <table class="benchmark-table">
+        <thead>
+            <tr>
+                <th>Operation</th>
+                <th class="num">Size</th>
+                <th class="num">Scalar (ms)</th>
+                <th class="num">Vector&lt;T&gt; (ms)</th>
+                <th class="num">Speedup</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var r in results)
+            {
+                <tr>
+                    <td>@r.Name</td>
+                    <td class="num">@r.Size</td>
+                    <td class="num">@r.ScalarMs.ToString("F2")</td>
+                    <td class="num">@r.VectorMs.ToString("F2")</td>
+                    <td class="num">
+                        <span class="speedup @GetSpeedupClass(r.Speedup)">
+                            @r.Speedup.ToString("F2")x
+                        </span>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+
+    <div class="benchmark-summary">
+        @{
+            var avg = results.Average(r => r.Speedup);
+        }
+        <p>
+            <strong>Average speedup: @avg.ToString("F2")x</strong>
+            @if (avg >= 2.0)
+            {
+                <span>— SIMD provides significant acceleration on this device.</span>
+            }
+            else if (avg >= 1.2)
+            {
+                <span>— Partial SIMD acceleration detected.</span>
+            }
+            else
+            {
+                <span>— Running in compatibility mode (interpreter, no SIMD).</span>
+            }
+        </p>
+    </div>
+
+    <hr />
+
+    <details class="benchmark-test-notes">
+        <summary>How to test both modes</summary>
+        <div class="notes-content">
+            <p><strong>SIMD build</strong> — load without query flags:</p>
+            <pre><code>https://localhost:5001/simd-benchmark</code></pre>
+            <p><strong>Compatibility build</strong> — force compat mode:</p>
+            <pre><code>https://localhost:5001/simd-benchmark?forceCompatMode=1</code></pre>
+            <p>
+                In compat mode, <code>Vector&lt;T&gt;</code> operations run on the Mono interpreter
+                without WASM SIMD instructions — making them <strong>dramatically slower</strong>
+                than the SIMD build.
+            </p>
+        </div>
+    </details>
+
+    <button class="btn-primary btn-rerun" @onclick="RunBenchmarks">
+        ↻ Run Again
+    </button>
+}
+
+@code {
+    private bool isRunning;
+    private bool isSimdSupported;
+    private int vectorWidth;
+    private List<BenchmarkResult>? results;
+    private int progress;
+    private string currentBenchmarkName = "";
+    private CancellationTokenSource? cts;
+
+    protected override void OnInitialized()
+    {
+        isSimdSupported = Vector.IsHardwareAccelerated;
+        vectorWidth = Vector<float>.Count;
+    }
+
+    private async Task RunBenchmarks()
+    {
+        cts?.Cancel();
+        cts = new CancellationTokenSource();
+        var ct = cts.Token;
+
+        isRunning = true;
+        results = new();
+        progress = 0;
+
+        var benchmarks = new List<(string name, Func<BenchmarkResult> run)>
+        {
+            ("Array Sum (float)", () => BenchmarkArraySum(10_000_000)),
+            ("Array Multiply (float)", () => BenchmarkArrayMultiply(5_000_000)),
+            ("Matrix Multiply 128x128", () => BenchmarkMatrixMultiply(128)),
+            ("Dot Product (float)", () => BenchmarkDotProduct(10_000_000)),
+        };
+
+        var step = 100 / benchmarks.Count;
+
+        for (int i = 0; i < benchmarks.Count; i++)
+        {
+            if (ct.IsCancellationRequested) break;
+
+            currentBenchmarkName = benchmarks[i].name;
+            var result = await Task.Run(benchmarks[i].run);
+            results.Add(result);
+            progress += step;
+        }
+
+        progress = 100;
+        currentBenchmarkName = "Done!";
+        isRunning = false;
+    }
+
+    private static BenchmarkResult BenchmarkArraySum(int size)
+    {
+        var data = new float[size];
+        for (int i = 0; i < size; i++)
+            data[i] = (i & 1) == 0 ? 1.0f : -1.0f;
+
+        // Warmup
+        float warmup = 0;
+        for (int i = 0; i < 1000; i++) warmup += data[i];
+
+        // Scalar
+        var sw = Stopwatch.StartNew();
+        double sum1 = 0;
+        for (int i = 0; i < data.Length; i++) sum1 += data[i];
+        sw.Stop();
+        var scalarMs = sw.Elapsed.TotalMilliseconds;
+
+        // Vector<T>
+        var vCount = Vector<float>.Count;
+        sw.Restart();
+        var acc = Vector<float>.Zero;
+        int j = 0;
+        for (; j <= data.Length - vCount; j += vCount)
+            acc += new Vector<float>(data, j);
+        float sum2 = 0;
+        for (int k = 0; k < vCount; k++) sum2 += acc[k];
+        for (; j < data.Length; j++) sum2 += data[j];
+        sw.Stop();
+        var vectorMs = sw.Elapsed.TotalMilliseconds;
+
+        // Validate: sums should match
+        var ratio = Math.Abs(sum1) > 0.001 ? Math.Abs(sum2 / sum1) : 1.0;
+        var speedup = ratio > 0.99 && ratio < 1.01 ? scalarMs / Math.Max(vectorMs, 0.001) : 1.0;
+
+        return new() { Name = "Array Sum (float)", Size = FormatSize(size), ScalarMs = scalarMs, VectorMs = vectorMs,  };
+    }
+
+    private static BenchmarkResult BenchmarkArrayMultiply(int size)
+    {
+        var a = new float[size];
+        var b = new float[size];
+        for (int i = 0; i < size; i++)
+        {
+            a[i] = (i % 100) * 0.1f;
+            b[i] = (i % 50) * 0.2f;
+        }
+
+        // Warmup
+        float warmup = 0;
+        for (int i = 0; i < 1000; i++) warmup += a[i] * b[i];
+
+        // Scalar
+        var sw = Stopwatch.StartNew();
+        float s = 0;
+        for (int i = 0; i < size; i++) s += a[i] * b[i];
+        sw.Stop();
+        var scalarMs = sw.Elapsed.TotalMilliseconds;
+
+        // Vector<T>
+        var vCount = Vector<float>.Count;
+        sw.Restart();
+        var acc = Vector<float>.Zero;
+        int j = 0;
+        for (; j <= size - vCount; j += vCount)
+            acc += new Vector<float>(a, j) * new Vector<float>(b, j);
+        float sum = 0;
+        for (int k = 0; k < vCount; k++) sum += acc[k];
+        for (; j < size; j++) sum += a[j] * b[j];
+        sw.Stop();
+        var vectorMs = sw.Elapsed.TotalMilliseconds;
+
+        var speedup = scalarMs / Math.Max(vectorMs, 0.001);
+        return new() { Name = "Array Multiply (float)", Size = FormatSize(size), ScalarMs = scalarMs, VectorMs = vectorMs,  };
+    }
+
+    private static BenchmarkResult BenchmarkMatrixMultiply(int n)
+    {
+        var size = n * n;
+        var a = new float[size];
+        var b = new float[size];
+        var c = new float[size];
+        var rng = new Random(42);
+        for (int i = 0; i < size; i++)
+        {
+            a[i] = (float)rng.NextDouble();
+            b[i] = (float)rng.NextDouble();
+        }
+
+        // Warmup
+        for (int i = 0; i < 10; i++)
+            c[i] = a[i] * b[i];
+
+        // Scalar
+        var sw = Stopwatch.StartNew();
+        for (int i = 0; i < n; i++)
+        {
+            for (int k = 0; k < n; k++)
+            {
+                var aik = a[i * n + k];
+                for (int j = 0; j < n; j++)
+                    c[i * n + j] += aik * b[k * n + j];
+            }
+        }
+        sw.Stop();
+        var scalarMs = sw.Elapsed.TotalMilliseconds;
+
+        // Vector<T> — process one row at a time, vectorized inner loop
+        Array.Clear(c);
+        var vCount = Vector<float>.Count;
+        sw.Restart();
+        for (int i = 0; i < n; i++)
+        {
+            for (int k = 0; k < n; k++)
+            {
+                var aik = new Vector<float>(a[i * n + k]);
+                int j = 0;
+                for (; j <= n - vCount; j += vCount)
+                {
+                    var vc = new Vector<float>(c, i * n + j);
+                    var vb = new Vector<float>(b, k * n + j);
+                    (vc + aik * vb).CopyTo(c, i * n + j);
+                }
+                for (; j < n; j++)
+                    c[i * n + j] += a[i * n + k] * b[k * n + j];
+            }
+        }
+        sw.Stop();
+        var vectorMs = sw.Elapsed.TotalMilliseconds;
+
+        var speedup = scalarMs / Math.Max(vectorMs, 0.001);
+        return new() { Name = $"Matrix Multiply {n}x{n}", Size = FormatSize(size), ScalarMs = scalarMs, VectorMs = vectorMs,  };
+    }
+
+    private static BenchmarkResult BenchmarkDotProduct(int size)
+    {
+        var a = new float[size];
+        var b = new float[size];
+        for (int i = 0; i < size; i++)
+        {
+            a[i] = (i % 50) * 0.3f;
+            b[i] = (i % 30) * 0.7f;
+        }
+
+        // Warmup
+        float warmup = 0;
+        for (int i = 0; i < 1000; i++) warmup += a[i] * b[i];
+
+        // Scalar
+        var sw = Stopwatch.StartNew();
+        double dot1 = 0;
+        for (int i = 0; i < size; i++) dot1 += a[i] * b[i];
+        sw.Stop();
+        var scalarMs = sw.Elapsed.TotalMilliseconds;
+
+        // Vector<T> using Vector.Dot
+        var vCount = Vector<float>.Count;
+        sw.Restart();
+        var acc = Vector<float>.Zero;
+        int j = 0;
+        for (; j <= size - vCount; j += vCount)
+            acc += new Vector<float>(a, j) * new Vector<float>(b, j);
+        float dot2 = 0;
+        for (int k = 0; k < vCount; k++) dot2 += acc[k];
+        for (; j < size; j++) dot2 += a[j] * b[j];
+        sw.Stop();
+        var vectorMs = sw.Elapsed.TotalMilliseconds;
+
+        var speedup = scalarMs / Math.Max(vectorMs, 0.001);
+        return new() { Name = "Dot Product (float)", Size = FormatSize(size), ScalarMs = scalarMs, VectorMs = vectorMs,  };
+    }
+
+    private static string FormatSize(int n) => n switch
+    {
+        >= 1_000_000 => $"{n / 1_000_000.0:F1}M",
+        >= 1_000 => $"{n / 1_000.0:F1}K",
+        _ => n.ToString()
+    };
+
+    private static string GetSpeedupClass(double speedup) => speedup switch
+    {
+        >= 3.0 => "speedup-fast",
+        >= 1.5 => "speedup-medium",
+        _ => "speedup-slow"
+    };
+
+    private class BenchmarkResult
+    {
+        public string Name { get; set; } = "";
+        public string Size { get; set; } = "";
+        public double ScalarMs { get; set; }
+        public double VectorMs { get; set; }
+        public double Speedup => ScalarMs / Math.Max(VectorMs, 0.001);
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        cts?.Cancel();
+        cts?.Dispose();
+        await Task.CompletedTask;
+    }
+}
