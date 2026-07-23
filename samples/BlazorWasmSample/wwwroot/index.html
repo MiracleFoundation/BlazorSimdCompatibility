@@ -28,10 +28,11 @@
 
     <!-- Pre-check: detect ??= support (missing on Safari < 15.4 / iOS < 15.4).
          .NET 10's blazor.webassembly.js uses ??= (logical nullish assignment)
-         which is a SyntaxError on older browsers. -->
-    <script>
-        try { eval('0 ??= 1'); } catch (e) { window.__blazorIncompatibleBrowser = true; console.error('[boot] Browser too old for .NET Blazor (missing ??= operator)'); }
-    </script>
+         which is a SyntaxError on older browsers.
+         
+         Split-script approach (CSP-safe, no eval/Function): -->
+    <script>window.__blazorIncompatibleBrowser = true;</script>
+    <script>window.__blazorIncompatibleBrowser = false; var _bsdCompatTest_; _bsdCompatTest_ ??= 1;</script>
 
     <!-- Blazor loader with autostart=false so SIMD detection can run first -->
     <!-- .NET 8: use literal filename. .NET 9+: use #[.{fingerprint}] placeholder -->

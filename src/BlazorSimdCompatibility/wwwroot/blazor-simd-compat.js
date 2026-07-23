@@ -4,7 +4,8 @@
 //
 // Usage in index.html:
 //   <!-- Must come BEFORE blazor.webassembly.js: detects ??= support -->
-//   <script>try{eval('0??=1')}catch(e){window.__blazorIncompatibleBrowser=true}</script>
+//   <script>window.__blazorIncompatibleBrowser = true;</script>
+//   <script>window.__blazorIncompatibleBrowser = false; var _bsdCompatTest_; _bsdCompatTest_ ??= 1;</script>
 //   <script src="_framework/blazor.webassembly.js" autostart="false"
 //       onerror="window.__blazorLoaderFailed=true"></script>
 //   <script src="_content/BlazorSimdCompatibility/blazor-simd-compat.js"></script>
@@ -16,9 +17,10 @@
 (function () {
   'use strict';
 
-  // Pre-check flag: set by an inline <script> in index.html before
-  // blazor.webassembly.js loads. When true, the browser doesn't support
-  // ??= (logical nullish assignment) which blazor.webassembly.js uses.
+  // Pre-check flag: set by two inline <script> blocks in index.html before
+  // blazor.webassembly.js loads. The first sets it to true; the second
+  // attempts ??= syntax — if the browser can't parse it (SyntaxError), the
+  // second block never runs and the flag stays true. CSP-safe, no eval.
 
   var RETRY_FLAG = 'bsdCompatRetry';
 

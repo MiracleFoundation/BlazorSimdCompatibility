@@ -34,7 +34,9 @@ dotnet add package BlazorSimdCompatibility
 
 ```html
 <!-- Pre-check: detect ??= support (required by .NET 10's blazor.webassembly.js) -->
-<script>try{eval('0??=1')}catch(e){window.__blazorIncompatibleBrowser=true}</script>
+<!-- Split-script approach: CSP-safe, no eval/Function -->
+<script>window.__blazorIncompatibleBrowser = true;</script>
+<script>window.__blazorIncompatibleBrowser = false; var _bsdCompatTest_; _bsdCompatTest_ ??= 1;</script>
 
 <!-- Blazor loader with autostart=false -->
 <script src="_framework/blazor.webassembly.js" autostart="false"
