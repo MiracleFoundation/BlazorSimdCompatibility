@@ -34,6 +34,19 @@
     <script>window.__blazorIncompatibleBrowser = true;</script>
     <script>window.__blazorIncompatibleBrowser = false; var _bsdCompatTest_; _bsdCompatTest_ ??= 1;</script>
 
+    <!-- Catch runtime errors from blazor.webassembly.js for diagnostics -->
+    <script>
+        window.addEventListener('error', function (e) {
+            if (e.filename && e.filename.indexOf('blazor.webassembly') !== -1) {
+                window.__blazorRuntimeError = { msg: e.message, file: e.filename, line: e.lineno, col: e.colno };
+            }
+            // Also catch anonymous errors that might come from eval'd / inline code
+            if (!window.__blazorRuntimeError && !e.filename) {
+                window.__blazorRuntimeError = window.__blazorRuntimeError || { msg: e.message };
+            }
+        });
+    </script>
+
     <!-- Blazor loader with autostart=false so SIMD detection can run first -->
     <!-- .NET 8: use literal filename. .NET 9+: use #[.{fingerprint}] placeholder -->
     <script src="_framework/blazor.webassembly.js" autostart="false"

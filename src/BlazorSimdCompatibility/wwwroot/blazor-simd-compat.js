@@ -47,9 +47,11 @@
     }
 
     if (window.__blazorScriptLoaded && typeof Blazor === 'undefined') {
+      var rtErr = window.__blazorRuntimeError;
+      var detail = rtErr ? (rtErr.msg + ' (at ' + rtErr.file + ':' + rtErr.line + ':' + rtErr.col + ')') : '(no runtime error captured)';
       showBootError(new Error(
         'blazor.webassembly.js loaded but did not define the Blazor global. ' +
-        'The .NET runtime may have encountered an error during initialization.'
+        'Runtime error: ' + detail
       ));
       return;
     }
