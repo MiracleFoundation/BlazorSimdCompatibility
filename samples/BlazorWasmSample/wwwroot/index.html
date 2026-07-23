@@ -26,6 +26,13 @@
         <span class="dismiss">🗙</span>
     </div>
 
+    <!-- Pre-check: detect ??= support (missing on Safari < 15.4 / iOS < 15.4).
+         .NET 10's blazor.webassembly.js uses ??= (logical nullish assignment)
+         which is a SyntaxError on older browsers. -->
+    <script>
+        try { eval('0 ??= 1'); } catch (e) { window.__blazorIncompatibleBrowser = true; console.error('[boot] Browser too old for .NET Blazor (missing ??= operator)'); }
+    </script>
+
     <!-- Blazor loader with autostart=false so SIMD detection can run first -->
     <!-- .NET 8: use literal filename. .NET 9+: use #[.{fingerprint}] placeholder -->
     <script src="_framework/blazor.webassembly.js" autostart="false"

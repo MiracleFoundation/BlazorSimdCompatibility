@@ -30,12 +30,19 @@ dotnet add package BlazorSimdCompatibility
 
 ### 2. Update `index.html`
 
+> **Important**: .NET 10 uses the `??=` operator (logical nullish assignment) which is a **SyntaxError on Safari < 15.4 / iOS < 15.4**. The inline script below detects this before loading `blazor.webassembly.js`, so a meaningful error is shown instead of a cryptic timeout.
+
 ```html
+<!-- Pre-check: detect ??= support (required by .NET 10's blazor.webassembly.js) -->
+<script>try{eval('0??=1')}catch(e){window.__blazorIncompatibleBrowser=true}</script>
+
 <!-- Blazor loader with autostart=false -->
-<script src="_framework/blazor.webassembly.js" autostart="false"></script>
+<script src="_framework/blazor.webassembly.js" autostart="false"
+    onerror="window.__blazorLoaderFailed=true"></script>
 
 <!-- wasm-feature-detect (bundled in the package) -->
-<script src="_content/BlazorSimdCompatibility/wasm-feature-detect.1.5.1.js"></script>
+<script src="_content/BlazorSimdCompatibility/wasm-feature-detect.1.5.1.js"
+    onerror="window.__featureDetectFailed=true"></script>
 
 <!-- SIMD detection + auto-start -->
 <script src="_content/BlazorSimdCompatibility/blazor-simd-compat.js"></script>
@@ -63,12 +70,17 @@ Deploy `bin/Publish/wwwroot/`. Modern devices get `_framework/` (SIMD), older de
 ```
 Browser loads index.html
   ↓
-blazor-simd-compat.js runs
+??= pre-check (inline script)
   ↓
-wasm-feature-detect checks SIMD + exceptions
-  ↓
-┌─ Supported → Blazor.start() loads _framework/ (SIMD build)
-└─ Not supported → loadBootResource remaps to _frameworkCompat/ (compat build)
+┌─ Missing → early error: "upgrade your browser"
+└─ Supported → blazor.webassembly.js loads
+                   ↓
+              blazor-simd-compat.js runs
+                   ↓
+              wasm-feature-detect checks SIMD + exceptions
+                   ↓
+              ┌─ Supported → Blazor.start() loads _framework/ (SIMD build)
+              └─ Not supported → loadBootResource remaps to _frameworkCompat/
 ```
 
 ## CLI Commands

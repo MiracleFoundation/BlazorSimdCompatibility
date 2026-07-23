@@ -3,7 +3,10 @@
 // with the correct build (SIMD or compat).
 //
 // Usage in index.html:
-//   <script src="_framework/blazor.webassembly.js" autostart="false"></script>
+//   <!-- Must come BEFORE blazor.webassembly.js: detects ??= support -->
+//   <script>try{eval('0??=1')}catch(e){window.__blazorIncompatibleBrowser=true}</script>
+//   <script src="_framework/blazor.webassembly.js" autostart="false"
+//       onerror="window.__blazorLoaderFailed=true"></script>
 //   <script src="_content/BlazorSimdCompatibility/blazor-simd-compat.js"></script>
 //
 // Debug flags (query string):
@@ -13,13 +16,23 @@
 (function () {
   'use strict';
 
-  // Intentionally NOT stubbing BigInt64Array/BigUint64Array: on iOS 15.0-15.3
-  // these are undefined. Stubbing them as function(){} tricks Blazor's WASM
-  // runtime into attempting typed-array operations that silently fail.
+  // Pre-check flag: set by an inline <script> in index.html before
+  // blazor.webassembly.js loads. When true, the browser doesn't support
+  // ??= (logical nullish assignment) which blazor.webassembly.js uses.
 
   var RETRY_FLAG = 'bsdCompatRetry';
 
   async function detectAndStart() {
+    // Check for incompatible browser BEFORE anything else
+    if (window.__blazorIncompatibleBrowser) {
+      showBootError(new Error(
+        'This browser does not support JavaScript features required by .NET Blazor ' +
+        '(missing ??= operator). Please upgrade to a modern browser: ' +
+        'iOS 15.4+ / Safari 15.4+ / Chrome 85+ / Firefox 79+.'
+      ));
+      return;
+    }
+
     var url = new URL(location.href);
     var verboseStart = url.searchParams.get('verboseStart') === '1';
     var forceCompatMode = url.searchParams.get('forceCompatMode') === '1';
@@ -95,6 +108,10 @@
     return new Promise(function (resolve, reject) {
       if (typeof Blazor !== 'undefined') {
         resolve();
+        return;
+      }
+      if (window.__blazorIncompatibleBrowser) {
+        reject(new Error('Browser incompatible (missing ??= operator)'));
         return;
       }
       if (window.__blazorLoaderFailed) {
