@@ -26,13 +26,12 @@
         <span class="dismiss">🗙</span>
     </div>
 
-    <!-- Pre-check: detect ??= support (missing on Safari < 15.4 / iOS < 15.4).
-         .NET 10's blazor.webassembly.js uses ??= (logical nullish assignment)
-         which is a SyntaxError on older browsers.
-         
-         Split-script approach (CSP-safe, no eval/Function): -->
+    <!-- Pre-check: detect JS features used by .NET 10's blazor.webassembly.js
+         - ??= (logical nullish assignment) — Safari 15.4+
+         - static{} initialization blocks — Safari 16.4+
+         CSP-safe split-script approach (no eval/Function): -->
     <script>window.__blazorIncompatibleBrowser = true;</script>
-    <script>window.__blazorIncompatibleBrowser = false; var _bsdCompatTest_; _bsdCompatTest_ ??= 1;</script>
+    <script>window.__blazorIncompatibleBrowser = false; var _bsdCompatTest_; _bsdCompatTest_ ??= 1; class _bsdStaticTest{static{}}</script>
 
     <!-- Catch runtime errors from blazor.webassembly.js for diagnostics -->
     <script>

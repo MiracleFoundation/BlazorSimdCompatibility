@@ -30,13 +30,13 @@ dotnet add package BlazorSimdCompatibility
 
 ### 2. Update `index.html`
 
-> **Important**: .NET 10 uses the `??=` operator (logical nullish assignment) which is a **SyntaxError on Safari < 15.4 / iOS < 15.4**. The inline script below detects this before loading `blazor.webassembly.js`, so a meaningful error is shown instead of a cryptic timeout.
+> **Important**: .NET 10 uses `??=` (nullish assignment) and `static{}` (initialization blocks) which are **SyntaxErrors on Safari < 15.4 / iOS < 15.4** and **Safari < 16.4 / iOS < 16.4** respectively. The inline scripts below detect these before loading `blazor.webassembly.js`, so a meaningful error is shown instead of a cryptic SyntaxError.
 
 ```html
-<!-- Pre-check: detect ??= support (required by .NET 10's blazor.webassembly.js) -->
+<!-- Pre-check: detect ??= and static{} support (required by .NET 10's blazor.webassembly.js) -->
 <!-- Split-script approach: CSP-safe, no eval/Function -->
 <script>window.__blazorIncompatibleBrowser = true;</script>
-<script>window.__blazorIncompatibleBrowser = false; var _bsdCompatTest_; _bsdCompatTest_ ??= 1;</script>
+<script>window.__blazorIncompatibleBrowser = false; var _bsdCompatTest_; _bsdCompatTest_ ??= 1; class _bsdStaticTest{static{}}</script>
 
 <!-- Blazor loader with autostart=false -->
 <script src="_framework/blazor.webassembly.js" autostart="false"
@@ -73,7 +73,7 @@ Deploy `bin/Publish/wwwroot/`. Modern devices get `_framework/` (SIMD), older de
 ```
 Browser loads index.html
   ↓
-??= pre-check (inline script)
+??= + static{} pre-check (inline script)
   ↓
 ┌─ Missing → early error: "upgrade your browser"
 └─ Supported → blazor.webassembly.js loads

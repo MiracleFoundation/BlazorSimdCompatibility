@@ -3,9 +3,9 @@
 // with the correct build (SIMD or compat).
 //
 // Usage in index.html:
-//   <!-- Must come BEFORE blazor.webassembly.js: detects ??= support -->
+//   <!-- Must come BEFORE blazor.webassembly.js: detects ES feature support -->
 //   <script>window.__blazorIncompatibleBrowser = true;</script>
-//   <script>window.__blazorIncompatibleBrowser = false; var _bsdCompatTest_; _bsdCompatTest_ ??= 1;</script>
+//   <script>window.__blazorIncompatibleBrowser = false; var _bsdCompatTest_; _bsdCompatTest_ ??= 1; class _bsdStaticTest{static{}}</script>
 //   <script src="_framework/blazor.webassembly.js" autostart="false"
 //       onload="window.__blazorScriptLoaded=true"
 //       onerror="window.__blazorLoaderFailed=true"></script>
@@ -20,8 +20,9 @@
 
   // Pre-check flag: set by two inline <script> blocks in index.html before
   // blazor.webassembly.js loads. The first sets it to true; the second
-  // attempts ??= syntax — if the browser can't parse it (SyntaxError), the
-  // second block never runs and the flag stays true. CSP-safe, no eval.
+  // attempts ??= and static{} syntax — if the browser can't parse either
+  // (SyntaxError), the second block never runs and the flag stays true.
+  // CSP-safe, no eval/Function.
 
   var RETRY_FLAG = 'bsdCompatRetry';
 
@@ -29,9 +30,9 @@
     // Check for incompatible browser BEFORE anything else
     if (window.__blazorIncompatibleBrowser) {
       showBootError(new Error(
-        'This browser does not support JavaScript features required by .NET Blazor ' +
-        '(missing ??= operator). Please upgrade to a modern browser: ' +
-        'iOS 15.4+ / Safari 15.4+ / Chrome 85+ / Firefox 79+.'
+        'This browser does not support JavaScript features required by .NET 10 Blazor. ' +
+        'Please upgrade to a modern browser: ' +
+        'iOS 16.4+ / Safari 16.4+ / Chrome 85+ / Firefox 79+.'
       ));
       return;
     }
@@ -124,7 +125,7 @@
         return;
       }
       if (window.__blazorIncompatibleBrowser) {
-        reject(new Error('Browser incompatible (missing ??= operator)'));
+        reject(new Error('Browser incompatible (missing ??= or static{} support)'));
         return;
       }
       if (window.__blazorLoaderFailed) {
