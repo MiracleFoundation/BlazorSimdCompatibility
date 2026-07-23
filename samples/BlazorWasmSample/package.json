@@ -1,0 +1,12 @@
+{
+  "name": "blazorwasmsample",
+  "private": true,
+  "description": "Post-publish transpilation for iOS 15 Safari compatibility",
+  "scripts": {
+    "transpile": "node transpile.js"
+  },
+  "devDependencies": {
+    "@babel/core": "^7.24.0",
+    "@babel/plugin-transform-class-static-block": "^7.24.0"
+  }
+}

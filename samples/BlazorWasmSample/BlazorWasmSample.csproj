@@ -24,4 +24,9 @@
     <Delete Files="$(PublishDir)wwwroot\_framework\blazor.webassembly.js.map.gz" Condition="Exists('$(PublishDir)wwwroot\_framework\blazor.webassembly.js.map.gz')" />
   </Target>
 
+  <!-- Transpile blazor.webassembly.js for Safari 15 (strip static{} blocks) after publish -->
+  <Target Name="TranspileBlazorJs" AfterTargets="RemoveSourceMaps">
+    <Exec Command="cd $(MSBuildProjectDirectory) && npm install --silent && node transpile.js $(PublishDir)" />
+  </Target>
+
 </Project>

@@ -30,13 +30,16 @@ dotnet add package BlazorSimdCompatibility
 
 ### 2. Update `index.html`
 
-> **Important**: .NET 10 uses `??=` (nullish assignment) and `static{}` (initialization blocks) which are **SyntaxErrors on Safari < 15.4 / iOS < 15.4** and **Safari < 16.4 / iOS < 16.4** respectively. The inline scripts below detect these before loading `blazor.webassembly.js`, so a meaningful error is shown instead of a cryptic SyntaxError.
+> **Important**: .NET 10 uses `??=` (nullish assignment) and `static{}` (class initialization blocks).
+> - `??=` is a **SyntaxError on Safari < 15.4 / iOS < 15.4**. The inline pre-check below catches this before loading `blazor.webassembly.js`.
+> - `static{}` is **transpiled away at build time** by the `TranspileBlazorJs` MSBuild target (uses Babel's `@babel/plugin-transform-class-static-block`). This ensures the bootloader works on **Safari 15+** without requiring Safari 16.4+.
 
 ```html
-<!-- Pre-check: detect ??= and static{} support (required by .NET 10's blazor.webassembly.js) -->
+<!-- Pre-check: detect ??= support (required by blazor.webassembly.js).
+     static{} is transpiled away at build time — see TranspileBlazorJs MSBuild target. -->
 <!-- Split-script approach: CSP-safe, no eval/Function -->
 <script>window.__blazorIncompatibleBrowser = true;</script>
-<script>window.__blazorIncompatibleBrowser = false; var _bsdCompatTest_; _bsdCompatTest_ ??= 1; class _bsdStaticTest{static{}}</script>
+<script>window.__blazorIncompatibleBrowser = false; var _bsdCompatTest_; _bsdCompatTest_ ??= 1;</script>
 
 <!-- Blazor loader with autostart=false -->
 <script src="_framework/blazor.webassembly.js" autostart="false"

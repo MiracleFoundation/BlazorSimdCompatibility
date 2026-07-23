@@ -365,3 +365,6 @@ FodyWeavers.xsd
 # Local NuGet output
 nupkgs/
 !nupkgs/.gitkeep
+
+# AI session tracking
+.omo/
