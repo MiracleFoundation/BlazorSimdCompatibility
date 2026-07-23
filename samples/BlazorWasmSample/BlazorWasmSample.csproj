@@ -26,7 +26,7 @@
 
   <!-- Transpile blazor.webassembly.js for Safari 15 (strip static{} blocks) after publish -->
   <Target Name="TranspileBlazorJs" AfterTargets="RemoveSourceMaps">
-    <Exec Command="cd $(MSBuildProjectDirectory) && npm install --silent && node transpile.js $(PublishDir)" />
+    <Exec Command="cd $(MSBuildProjectDirectory) &amp;&amp; npm install --silent &amp;&amp; node transpile.js $(PublishDir)" />
   </Target>
 
 </Project>
