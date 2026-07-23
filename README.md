@@ -40,6 +40,7 @@ dotnet add package BlazorSimdCompatibility
 
 <!-- Blazor loader with autostart=false -->
 <script src="_framework/blazor.webassembly.js" autostart="false"
+    onload="window.__blazorScriptLoaded=true"
     onerror="window.__blazorLoaderFailed=true"></script>
 
 <!-- wasm-feature-detect (bundled in the package) -->

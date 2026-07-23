@@ -7,6 +7,7 @@
 //   <script>window.__blazorIncompatibleBrowser = true;</script>
 //   <script>window.__blazorIncompatibleBrowser = false; var _bsdCompatTest_; _bsdCompatTest_ ??= 1;</script>
 //   <script src="_framework/blazor.webassembly.js" autostart="false"
+//       onload="window.__blazorScriptLoaded=true"
 //       onerror="window.__blazorLoaderFailed=true"></script>
 //   <script src="_content/BlazorSimdCompatibility/blazor-simd-compat.js"></script>
 //
@@ -42,6 +43,14 @@
 
     if (window.__blazorLoaderFailed) {
       showBootError(new Error('blazor.webassembly.js failed to load'));
+      return;
+    }
+
+    if (window.__blazorScriptLoaded && typeof Blazor === 'undefined') {
+      showBootError(new Error(
+        'blazor.webassembly.js loaded but did not define the Blazor global. ' +
+        'The .NET runtime may have encountered an error during initialization.'
+      ));
       return;
     }
 
@@ -129,7 +138,13 @@
         }
         if (Date.now() - start > timeoutMs) {
           clearInterval(timer);
-          reject(new Error('Blazor global not defined within ' + timeoutMs + 'ms'));
+          var diag = [
+            'Blazor global not defined within ' + timeoutMs + 'ms',
+            'scriptLoaded=' + !!window.__blazorScriptLoaded,
+            'loaderFailed=' + !!window.__blazorLoaderFailed,
+            'incompatibleBrowser=' + !!window.__blazorIncompatibleBrowser
+          ].join(' | ');
+          reject(new Error(diag));
         }
       }, 100);
     });

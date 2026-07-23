@@ -37,6 +37,7 @@
     <!-- Blazor loader with autostart=false so SIMD detection can run first -->
     <!-- .NET 8: use literal filename. .NET 9+: use #[.{fingerprint}] placeholder -->
     <script src="_framework/blazor.webassembly.js" autostart="false"
+        onload="window.__blazorScriptLoaded=true"
         onerror="window.__blazorLoaderFailed=true;console.error('[boot] Blazor loader script failed to load');">
     </script>
 
