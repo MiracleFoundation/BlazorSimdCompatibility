@@ -155,6 +155,26 @@
     });
   }
 
+  var _compatBootConfigPromise = null;
+
+  async function _fetchCompatBootConfig(compatFrameworkPath) {
+    var response = await fetch(compatFrameworkPath + 'dotnet.js');
+    var code = await response.text();
+    // ft.withConfig(/*json-start*/{...})  — extract the JSON config embedded in JS
+    var match = code.match(/ft\.withConfig\(\s*\/\*json-start\*\//);
+    if (!match) throw new Error('[blazor-simd-compat] Could not find ft.withConfig() in compat boot config');
+    var startIdx = code.indexOf('{', match.index);
+    // Walk braces to find the matching closing brace
+    var depth = 0, i = startIdx;
+    for (; i < code.length; i++) {
+      if (code[i] === '{') depth++;
+      else if (code[i] === '}') { depth--; if (depth === 0) break; }
+    }
+    if (depth !== 0) throw new Error('[blazor-simd-compat] Unbalanced braces in compat boot config');
+    var jsonStr = code.substring(startIdx, i + 1);
+    return JSON.parse(jsonStr);
+  }
+
   async function startBlazor(useCompatMode, compatFrameworkPath) {
     try {
       console.log('[blazor-simd-compat] Booting:', useCompatMode ? 'COMPAT' : 'DEFAULT');
@@ -162,7 +182,23 @@
       await waitForBlazor(15000);
       await Blazor.start({
         loadBootResource: function (type, name, defaultUri, integrity) {
-          if (!useCompatMode) return defaultUri;
+          if (!useCompatMode) return type === 'manifest' ? undefined : defaultUri;
+
+          // Intercept manifest: load the COMPAT boot config so resource hashes match
+          if (type === 'manifest') {
+            if (!_compatBootConfigPromise) {
+              _compatBootConfigPromise = _fetchCompatBootConfig(compatFrameworkPath)
+                .then(function (config) {
+                  console.log('[blazor-simd-compat] Loaded compat boot config:', config.mainAssemblyName);
+                  return { config: config };
+                });
+            }
+            return _compatBootConfigPromise;
+          }
+
+          // For all other resource types, remap _framework/ → compat path.
+          // The compat config loaded above ensures resource names have correct hashes.
+          if (!defaultUri) return defaultUri;
           var compatUri = defaultUri.replace('_framework/', compatFrameworkPath);
           console.log('[blazor-simd-compat] loadBootResource:', type, name, '→', compatUri);
           return compatUri;
